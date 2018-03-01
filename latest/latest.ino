@@ -21,8 +21,8 @@ float mX, mY, mZ;
 #define TOLERANCE 0.01 //1 cm Tolerance
 MS5803 pressureSensor(0x76);
 //Create variables to store results
-double pressure_abs, altitude_delta, pressure_baseline;
-double base_altitude = 325.0; // Altitude of Waterloo Ontario (m)
+double pressure_abs, pressure_relative, altitude_delta, pressure_baseline;
+double base_altitude = 329.0; // Altitude of Waterloo Ontario (m)
 
 
 //Filter Library
@@ -116,7 +116,7 @@ void setup() {
   //Initialize the pressure sensor
   pressureSensor.reset();
   pressureSensor.begin();
-  //pressure_baseline = pressureSensor.getPressure(ADC_4096);
+  pressure_baseline = pressureSensor.getPressure(ADC_4096);
 
   //Initialize IMU sensor
   Wire.begin(); //initialized the arduino board itself as a master
@@ -134,24 +134,24 @@ void setup() {
   imuSensor.getAres();
   imuSensor.getGres();
   imuSensor.getMres();
-  imuSensor.magBias[0] = -1.77;
-  imuSensor.magBias[1] = 265.32;
-  imuSensor.magBias[2] = 222.33;
-  imuSensor.magScale[0] = 0.85;
-  imuSensor.magScale[1] = 0.89;
-  imuSensor.magScale[2] = 1.43;
+  imuSensor.magBias[0] = 53.06;
+  imuSensor.magBias[1] = 28.30;
+  imuSensor.magBias[2] = -157.34;
+  imuSensor.magScale[0] = 0.88;
+  imuSensor.magScale[1] = 1.07;
+  imuSensor.magScale[2] = 1.08;
   imuSensor.factoryMagCalibration[0] = 1.18;
   imuSensor.factoryMagCalibration[1] = 1.18;
   imuSensor.factoryMagCalibration[2] = 1.14;
 
   //Set up pressure offset via filtering first for 5 sec.
-  for(int i = 0; i < 5; i++) {
+  /*for(int i = 0; i < 5; i++) {
     pressure_baseline = sma_filter(pressureSensor.getPressure(ADC_4096), pFilter);
 
     if (i != 4) {
       delay(200);
     }
-  }
+  }*/
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -317,6 +317,10 @@ void maintainDepth() {
   StopZAxis(); //Turn vertical thrust motors off
 }
 
+double waterDepth(double pRelative) {
+  return(pRelative*100/(998*9.81));
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -389,11 +393,21 @@ void loop() {
     Serial.print(", ");
     Serial.println(sma_filter(imuSensor.roll, rollfilter));
 
-    Serial.print("Pressure Raw: ");
-    Serial.println(pressureSensor.getPressure(ADC_4096));
+    pressure_abs = pressureSensor.getPressure(ADC_4096);
+    pressure_relative = sealevel(pressure_abs, base_altitude);
+    altitude_delta = altitude(pressure_abs , pressure_baseline);
+    Serial.print("Pressure abs (mbar)= ");
+    Serial.println(pressure_abs);
 
-    Serial.print("SMAPressure: ");
-    Serial.println(sma_filter(pressureSensor.getPressure(ADC_4096), pFilter));
+    Serial.print("SMAPressure abs: ");
+    Serial.println(sma_filter(pressure_abs, pFilter));
+
+    Serial.print("Pressure relative (mbar)= ");
+    Serial.println(pressure_relative);
+ 
+    double wDepth = waterDepth(pressure_abs - pressure_baseline); 
+    Serial.print("Water Depth (m) = ");
+    Serial.println(wDepth);
 
     imuSensor.count = millis();
     imuSensor.sumCount = 0;
