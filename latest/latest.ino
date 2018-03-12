@@ -294,6 +294,9 @@ void setup() {
   imuSensor.factoryMagCalibration[0] = 1.18;
   imuSensor.factoryMagCalibration[1] = 1.18;
   imuSensor.factoryMagCalibration[2] = 1.14;
+  updateIMUSensor();
+  north = imuSensor.yaw;
+  Serial.println("North Calibrated To Be: " + String(north));
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -325,9 +328,35 @@ float sma_filter(float current_value, float* history_SMA)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //IMU
 /////////////////////////////////////////////////////////////////////////////////////////////////
+float tol = 30;
 void pointNorth() {
-  float yaw = yawfilter[SMA_LENGTH-1]; //get latest filtered yaw
+  bool atNorth = false;
+  while (atNorth == false) {
+    float val = yawfilter[SMA_LENGTH-1]; //get latest filtered yaw
+    float delta = val - north;
+    
+    if (delta < -180) {
+      delta = delta + 360;
+    } 
+    else if (delta > 180) {
+      delta = delta - 360;
+    }
   
+    if (-180 <= delta && delta <= -tol) {
+      Right();
+    } 
+    else if (-tol <= delta && delta <= 0) {
+      StopLat();
+      atNorth = true;
+    } 
+    else if (0 <= delta && delta <= tol) {
+      StopLat();
+      atNorth = true;
+    }
+    else if (tol <= delta && delta <= 180) {
+      Left();
+    }
+  }
 }
 
 void updateIMUSensor() {
@@ -508,7 +537,6 @@ double waterDepth(double pRelative) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //SD Card
