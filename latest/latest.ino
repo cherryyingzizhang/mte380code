@@ -636,7 +636,7 @@ void testForXDuration(String direction) {
     ay = aYfilter[SMA_LENGTH-1];
     az = aZfilter[SMA_LENGTH-1];
 
-    double delta_t = millis() - lastTime;
+    double delta_t = (millis() - lastTime)/1000.0;
     lastTime = millis();
     
     sx = (old_ax+ax) * delta_t / 2.0;
