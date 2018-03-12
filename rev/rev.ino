@@ -69,6 +69,7 @@ void SetThrottleRange()
     Motors[i].Motor.writeMicroseconds(ESCSettings.Low);
   }
 
+  Serial.println("\nPress another button for medium configuration");
   // Wait for user input
   while (!Serial.available())
   {
@@ -278,8 +279,11 @@ void RunDirectionsBySerialInput() {
   }
 }
 
+int i = 0;
 void loop() {
-  //SetThrottleRange();
+  if (i == 0) {
+    SetThrottleRange();
+  }
   //RunDirectionsBySerialInput();
-  RunDirectionsBySerialInput();
+  //RunDirectionsBySerialInput();
 }
