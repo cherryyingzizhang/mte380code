@@ -11,15 +11,23 @@
 //SD Card
 #include <SPI.h>
 #include <SD.h>
+//XBOX USB
+#include <XBOXUSB.h>
+#include <spi4teensy3.h>
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //Initialization of variables
 /////////////////////////////////////////////////////////////////////////////////////////////////
+//USB
+USB Usb;
+XBOXUSB Xbox(&Usb);
+
 //IMU Sensor
 MPU9250 imuSensor;
 float mDirection;
 float mX, mY, mZ;
-float north;
+float north, forwardYaw;
 
 //Pressure sensor
 MS5803 pressureSensor(0x76);
@@ -42,6 +50,7 @@ int testDuration = 1;
 float yawfilter[SMA_LENGTH]; //magnometer X
 float pitchfilter[SMA_LENGTH]; //magnometer Y
 float rollfilter[SMA_LENGTH]; //magnometer Z
+float latestYaw = 0;
 
 float aXfilter[SMA_LENGTH]; //A X
 float aYfilter[SMA_LENGTH]; //A Y
@@ -135,11 +144,12 @@ void translateIR() // takes action based on IR code received
     break;
   ///////////////////////////
   case 0xFF9867: //EQ
-    goToDepth(0.50); 
-    buttonPressed = "GoToDepth";
+    updateIMUSensor();
+    north = yawfilter[SMA_LENGTH-1];
+    Serial.println("New North: " + String(north));
     break;
   case 0xFFB04F: //ST/REPT
-    pointNorth(); 
+    pointNorth("north"); 
     buttonPressed = "pointNorth";
     break; 
   case 0xFF02FD: //play/pause
@@ -294,9 +304,13 @@ void setup() {
   imuSensor.factoryMagCalibration[0] = 1.18;
   imuSensor.factoryMagCalibration[1] = 1.18;
   imuSensor.factoryMagCalibration[2] = 1.14;
+  Serial.println("Calibrating north...");
   updateIMUSensor();
   north = imuSensor.yaw;
   Serial.println("North Calibrated To Be: " + String(north));
+
+  //XBOX
+  Usb.Task();
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -328,12 +342,22 @@ float sma_filter(float current_value, float* history_SMA)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //IMU
 /////////////////////////////////////////////////////////////////////////////////////////////////
-float tol = 30;
-void pointNorth() {
+float tol = 9;
+void pointNorth(String orientation) {
   bool atNorth = false;
+  float val = 0;
+  float delta = 0;
+  
   while (atNorth == false) {
-    float val = yawfilter[SMA_LENGTH-1]; //get latest filtered yaw
-    float delta = val - north;
+    updateIMUSensor();
+    val = latestYaw; //get latest filtered yaw
+    Serial.println("updatedYaw: " + String(val));
+
+    if (orientation == "forward") { //fixes any lateral tilt while in 'forward' mode
+      delta = val - forwardYaw;
+    } else { //reorient to 'north' of the pool
+      delta = val - north; //north is a constant set-up at initial
+    }
     
     if (delta < -180) {
       delta = delta + 360;
@@ -343,19 +367,26 @@ void pointNorth() {
     }
   
     if (-180 <= delta && delta <= -tol) {
-      Right();
+      Left();
+      goingForward = true;
     } 
     else if (-tol <= delta && delta <= 0) {
-      StopLat();
+      if (orientation != "forward") { 
+        StopLat();
+      }
       atNorth = true;
     } 
     else if (0 <= delta && delta <= tol) {
-      StopLat();
+      if (orientation != "forward") { 
+        StopLat();
+      }
       atNorth = true;
     }
     else if (tol <= delta && delta <= 180) {
-      Left();
+      Right();
+      goingForward = true;
     }
+    delay(25);
   }
 }
 
@@ -382,13 +413,15 @@ void updateIMUSensor() {
                * imuSensor.factoryMagCalibration[1] - imuSensor.magBias[1];
     imuSensor.mz = (float)imuSensor.magCount[2] * imuSensor.mRes
                * imuSensor.factoryMagCalibration[2] - imuSensor.magBias[2];
+  } else {
+    Serial.println("did not update");
   }
   imuSensor.updateTime();
   MahonyQuaternionUpdate(imuSensor.ax, imuSensor.ay, imuSensor.az, imuSensor.gx * DEG_TO_RAD,
                          imuSensor.gy * DEG_TO_RAD, imuSensor.gz * DEG_TO_RAD, imuSensor.my,
                          imuSensor.mx, imuSensor.mz, imuSensor.deltat);
   imuSensor.delt_t = millis() - imuSensor.count;
-  if (imuSensor.delt_t > 10)
+  if (imuSensor.delt_t > 25)
   {
     imuSensor.yaw   = atan2(2.0f * (*(getQ()+1) * *(getQ()+2) + *getQ()
                     * *(getQ()+3)), *getQ() * *getQ() + *(getQ()+1)
@@ -412,19 +445,19 @@ void updateIMUSensor() {
     Serial.print(", ");
     Serial.println(imuSensor.roll, 2);*/
 
-    float SMAyaw = sma_filter(imuSensor.yaw, yawfilter);
+    latestYaw = sma_filter(imuSensor.yaw, yawfilter);
     float SMApitch = sma_filter(imuSensor.pitch, pitchfilter);
     float SMAroll = sma_filter(imuSensor.roll, rollfilter);
 
     /*Serial.print("SMAYaw, SMAPitch, SMARoll: ");
-    Serial.print(SMAyaw);
+    Serial.print(latestYaw);
     Serial.print(", ");
     Serial.print(SMApitch);
     Serial.print(", ");
     Serial.println(SMAroll);*/
 
     if (isRecording == true) {
-      recordingFile.println("SMAYaw, SMAPitch, SMARoll: " + String(SMAyaw) + " " + String(SMApitch) + " " + String(SMAroll));
+      recordingFile.println("SMAYaw, SMAPitch, SMARoll: " + String(latestYaw) + " " + String(SMApitch) + " " + String(SMAroll));
       recordingFile.println("RawYaw, RawPitch, RawRoll: " + String(imuSensor.yaw) + " " + String(imuSensor.pitch) + " " + String(imuSensor.roll));
       recordingFile.println(String(millis()));
     }
@@ -441,60 +474,67 @@ void updateIMUSensor() {
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //Code for 4 Motor Movements
 /////////////////////////////////////////////////////////////////////////////////////////////////
-int change = 125;
-int zAxisHandicap = 1;
-int lateralLeftHandicap = 1;
+int change = 75;
+int handicap = 5;
+bool goingForward = false;
 
 void Forward() {
   Serial.println("Forward");
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium + change); //left
-  Motors[3].Motor.writeMicroseconds(ESCSettings.Medium + change + 5); //right
+  updateIMUSensor();
+  forwardYaw = latestYaw; //get latest filtered yaw
+  goingForward = true;
+  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium - change - 17); //left
+  Motors[3].Motor.writeMicroseconds(ESCSettings.Medium + change); //right
 }
 
 void Backward() {
   Serial.println("Backward");
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium - change - 5); //left
+  goingForward = false;
+  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium + change - 5); //left
   Motors[3].Motor.writeMicroseconds(ESCSettings.Medium - change); //right
 }
 
 void Left() {
   Serial.println("Left");
+  goingForward = false;
   Motors[2].Motor.writeMicroseconds(ESCSettings.Medium); //left
   Motors[3].Motor.writeMicroseconds(ESCSettings.Medium + change); //right
 }
 
 void Right() {
   Serial.println("Right");
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium + change); //left
+  goingForward = false;
+  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium - change + 5); //left
   Motors[3].Motor.writeMicroseconds(ESCSettings.Medium); //right
 }
 
 void Up() {
   Serial.println("Up");
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium - change - 5); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium + change); //z-axis left
   Motors[1].Motor.writeMicroseconds(ESCSettings.Medium - change); //z-axis right
 }
 
 void Down() {
   Serial.println("Down");
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium + change); //z-axis left
-  Motors[1].Motor.writeMicroseconds(ESCSettings.Medium + change + 5); //z-axis right
+  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium - change - 5); //z-axis left
+  Motors[1].Motor.writeMicroseconds(ESCSettings.Medium + change); //z-axis right
 }
 
 void TiltRight() {
   Serial.println("Tilt Right");
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium + change); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium - change - 5); //z-axis left
   Motors[1].Motor.writeMicroseconds(ESCSettings.Medium - change); //z-axis right
 }
 
 void TiltLeft() {
   Serial.println("Tilt Left");
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium - change); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium + change + 5); //z-axis left
   Motors[1].Motor.writeMicroseconds(ESCSettings.Medium + change); //z-axis right
 }
 
 void StopLat() {
   Serial.println("Stop Lateral");
+  goingForward = false;
   Motors[2].Motor.writeMicroseconds(ESCSettings.Medium);
   Motors[3].Motor.writeMicroseconds(ESCSettings.Medium);
 }
@@ -511,8 +551,8 @@ void StopZAxis() {
 /////////////////////////////////////////////////////////////////////////////////////////////////
 void updatePressureSensor() {
   pressure_abs = pressureSensor.getPressure(ADC_4096);
-  pressure_relative = sealevel(pressure_abs, base_altitude);
-  float wDepth = sma_filter(waterDepth(pressure_abs - pressure_baseline), pFilter));
+  //pressure_relative = sealevel(pressure_abs, base_altitude);
+  float wDepth = sma_filter(waterDepth(pressure_abs - pressure_baseline), pFilter);
 
   /*Serial.print("Pressure abs (mbar)= ");
   Serial.println(pressure_abs);
@@ -596,31 +636,22 @@ void testForXDuration(String direction) {
   double startTime = millis();
   double lastTime = 0;
 
-  switch(direction){
-    case "Up":
-      Up();
-    break;
-    case "Forward":
-      Forward();
-    break;
-    case "Down":
-      Down();
-    break;
-    case "Left":
-      Left();
-    break;
-    case "Right":
-      Right();
-    break;
-    case "TiltLeft":
-      TiltLeft();
-    break;
-    case "TiltRight":
-      TiltRight();
-    break;
-    case "Backward":
-      Backward();
-    break;
+  if (direction == "Up") {
+    Up();
+  } else if (direction == "Forward") {
+    Forward();
+  } else if (direction == "Down") {
+    Down();
+  } else if (direction == "Left") {
+    Left();
+  } else if (direction == "Right") {
+    Right();
+  } else if (direction == "TiltLeft") {
+    TiltLeft();
+  } else if (direction == "TiltRight") {
+    TiltRight();
+  } else if (direction == "Backward") {
+    Backward();
   }
   
   while(millis() - startTime < testDuration*1000) {
@@ -664,10 +695,16 @@ void loop() {
   updateIMUSensor();
   updatePressureSensor();
   
-  if (irrecv.decode(&results)) // have we received an IR signal?
+  /*if (irrecv.decode(&results)) // have we received an IR signal?
   {
     translateIR();
     irrecv.resume(); // receive the next value
+  }*/
+  if (Xbox.Xbox360Connected) {
+    translateXbox();
+  }
+  if (goingForward) {
+    pointNorth("forward");
   }
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////
