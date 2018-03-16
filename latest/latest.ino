@@ -1,3 +1,6 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////
+//Libraries
+/////////////////////////////////////////////////////////////////////////////////////////////////
 //IMU
 #include <MPU9250.h>
 #include <quaternionFilters.h>
@@ -13,8 +16,6 @@
 #include <SD.h>
 //XBOX USB
 #include <XBOXUSB.h>
-#include <spi4teensy3.h>
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //Initialization of variables
@@ -189,15 +190,18 @@ void translateIR() // takes action based on IR code received
     break;
   case 0xFF22DD: //FAST BACK
     testDuration = testDuration - 1;
-    if (testDuration == 0) {
-      testDuration = 5;
+    if (testDuration < 1) {
+      testDuration = 1;
     }
     buttonPressed = "CHANGED TEST DURATION: " + String(testDuration);
     Serial.println("New Test Duration: " + String(testDuration));
     buzzXTimes(testDuration);
     break;
   case 0xFFC23D: //FAST FORWARD
-    testDuration = (testDuration) % 6 + 1;
+    testDuration = testDuration + 1;
+    if (testDuration > 5) {
+      testDuration = 5;
+    }
     buttonPressed = "CHANGED TEST DURATION: " + String(testDuration);
     Serial.println("New Test Duration: " + String(testDuration));
     buzzXTimes(testDuration);
@@ -246,9 +250,6 @@ void setup() {
     Serial.println("SD Card initialization failed!");
   }
   Serial.println("SD Card initialization done.");
-
-  //pinMode(buzzerPin, OUTPUT); //initialize the buzzer
-  pinMode(3, OUTPUT); //LED
   
   irrecv.enableIRIn(); // Start the receiver
 
@@ -308,9 +309,6 @@ void setup() {
   updateIMUSensor();
   north = imuSensor.yaw;
   Serial.println("North Calibrated To Be: " + String(north));
-
-  //XBOX
-  Usb.Task();
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -579,6 +577,44 @@ double waterDepth(double pRelative) {
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+//Xbox Controller
+/////////////////////////////////////////////////////////////////////////////////////////////////
+void translateXbox() {
+  if (Xbox.getAnalogHat(LeftHatX) > 7500) { //RIGHT
+    Right();
+  }
+  else if (Xbox.getAnalogHat(LeftHatX) < -7500) { //LEFT
+    Left();
+  }
+  else if (Xbox.getAnalogHat(LeftHatY) > 7500) { //FORWARD
+    Forward();
+  }
+  else if (Xbox.getAnalogHat(LeftHatY) < -7500) { //BACKWARD
+    Backward();
+  }
+  else if (-7500 < Xbox.getAnalogHat(LeftHatX) && Xbox.getAnalogHat(LeftHatX) < 7500 &&
+           -7500 < Xbox.getAnalogHat(LeftHatY) && Xbox.getAnalogHat(LeftHatY) < 7500 ) {
+    StopLat();
+  }
+  else if (Xbox.getAnalogHat(RightHatX) > 7500) { //TILT RIGHT
+    TiltRight();
+  }
+  else if (Xbox.getAnalogHat(RightHatX) < -7500) { //TILT LEFT
+    TiltLeft();
+  }
+  else if (Xbox.getAnalogHat(RightHatY) > 7500) { //UP
+    Up();
+  }
+  else if (Xbox.getAnalogHat(RightHatY) < -7500) { //DOWN
+    Down();
+  }
+  else if (-7500 < Xbox.getAnalogHat(RightHatX) && Xbox.getAnalogHat(RightHatX) < 7500 &&
+           -7500 < Xbox.getAnalogHat(RightHatY) && Xbox.getAnalogHat(RightHatY) < 7500 ) {
+    StopZAxis();
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 //SD Card
 /////////////////////////////////////////////////////////////////////////////////////////////////
 void startRecording() {
@@ -692,18 +728,22 @@ void testForXDuration(String direction) {
 //Loop
 /////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
+  //XBOX
+  Usb.Task();
+
+  //Update Sensor Readings
   updateIMUSensor();
   updatePressureSensor();
   
-  /*if (irrecv.decode(&results)) // have we received an IR signal?
+  if (irrecv.decode(&results)) // have we received an IR signal?
   {
     translateIR();
     irrecv.resume(); // receive the next value
-  }*/
-  if (Xbox.Xbox360Connected) {
+  }
+  if (Xbox.Xbox360Connected) { //Have we received an Xbox signal?
     translateXbox();
   }
-  if (goingForward) {
+  if (goingForward) { //if moving forward, fix yaw drift.
     pointNorth("forward");
   }
 }
