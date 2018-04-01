@@ -53,7 +53,7 @@ void setup()
 {
   Wire.begin();
   // TWBR = 12;  // 400 kbit/sec I2C speed
-  Serial.begin(38400);
+  Serial.begin(115200);
 
   // Set up the interrupt pin, its set as active high, push-pull
   pinMode(intPin, INPUT);

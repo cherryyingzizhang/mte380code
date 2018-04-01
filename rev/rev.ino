@@ -15,9 +15,9 @@ MotorDef Motors[NUMMOTORS];
 // for a quadcopter project
 typedef struct ESCSettingsDef
 {
-  int Low;
-  int High;
-  int Medium;
+  int LowSpeed;
+  int HighSpeed;
+  int MediumSpeed;
 };
 ESCSettingsDef ESCSettings; 
 
@@ -27,12 +27,12 @@ ESCSettingsDef ESCSettings;
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("Setup: Serial port communication at 9600bps");
-  Motors[0].Pin = 9; //z-axis left
-  Motors[1].Pin = 10; //z-axis right
-  Motors[2].Pin = 11; //left
-  Motors[3].Pin = 12; //right
+  Motors[0].Pin = 2; //z-axis left
+  Motors[1].Pin = 3; //z-axis right
+  Motors[2].Pin = 4; //left
+  Motors[3].Pin = 5; //right
 
   for(int i = 0; i < NUMMOTORS; i++)
   {
@@ -40,9 +40,9 @@ void setup() {
     Motors[i].Motor.attach(pin);
   }
 
-  ESCSettings.Low   = ESC_LOW_DEFAULT;
-  ESCSettings.High  = ESC_HIGH_DEFAULT;
-  ESCSettings.Medium = ESC_MED_DEFAULT;
+  ESCSettings.LowSpeed   = ESC_LOW_DEFAULT;
+  ESCSettings.HighSpeed  = ESC_HIGH_DEFAULT;
+  ESCSettings.MediumSpeed = ESC_MED_DEFAULT;
 }
 
 void SetThrottleRange()
@@ -51,7 +51,7 @@ void SetThrottleRange()
     
   for (int i = 0; i < NUMMOTORS; i++)
   {
-    Motors[i].Motor.writeMicroseconds(ESCSettings.High);
+    Motors[i].Motor.writeMicroseconds(ESCSettings.HighSpeed);
   }
 
   Serial.println("Connect the ESC now. After connecting the ESC, you should hear the ESC startup tones. Shortly afterwards, you should hear two beeps indicating that the ESC has registered the high throttle value. Immediately after hearing the two beeps, push any key. If you don't do so in 5 sec, the ESC will go into program mode");
@@ -66,7 +66,7 @@ void SetThrottleRange()
 
   for (int i = 0; i < NUMMOTORS; i++)
   {
-    Motors[i].Motor.writeMicroseconds(ESCSettings.Low);
+    Motors[i].Motor.writeMicroseconds(ESCSettings.LowSpeed);
   }
 
   Serial.println("\nPress another button for medium configuration");
@@ -78,7 +78,7 @@ void SetThrottleRange()
 
   for (int i = 0; i < NUMMOTORS; i++)
   {
-    Motors[i].Motor.writeMicroseconds(ESCSettings.Medium);
+    Motors[i].Motor.writeMicroseconds(ESCSettings.MediumSpeed);
   }
 
   // Wait for user input
@@ -94,88 +94,88 @@ int lateralLeftHandicap = 1;
 
 void Forward() {
   //stop
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //z-axis left
   //stop
-  Motors[1].Motor.writeMicroseconds(ESCSettings.Medium); //z-axis right
+  Motors[1].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //z-axis right
   //forward
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium + change + lateralLeftHandicap); //left
+  Motors[2].Motor.writeMicroseconds(ESCSettings.MediumSpeed + change + lateralLeftHandicap); //left
   //forward
-  Motors[3].Motor.writeMicroseconds(ESCSettings.Medium - change); //right
+  Motors[3].Motor.writeMicroseconds(ESCSettings.MediumSpeed - change); //right
 }
 
 void Backward() {
   //stop
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //z-axis left
   //stop
-  Motors[1].Motor.writeMicroseconds(ESCSettings.Medium); //z-axis right
+  Motors[1].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //z-axis right
   //forward
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium - change - lateralLeftHandicap); //left
+  Motors[2].Motor.writeMicroseconds(ESCSettings.MediumSpeed - change - lateralLeftHandicap); //left
   //forward
-  Motors[3].Motor.writeMicroseconds(ESCSettings.Medium + change); //right
+  Motors[3].Motor.writeMicroseconds(ESCSettings.MediumSpeed + change); //right
 }
 
 void Left() {
   //stop
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //z-axis left
   //stop
-  Motors[1].Motor.writeMicroseconds(ESCSettings.Medium); //z-axis right
+  Motors[1].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //z-axis right
   //forward
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium - change - lateralLeftHandicap); //left
+  Motors[2].Motor.writeMicroseconds(ESCSettings.MediumSpeed - change - lateralLeftHandicap); //left
   //forward
-  Motors[3].Motor.writeMicroseconds(ESCSettings.Medium - change); //right
+  Motors[3].Motor.writeMicroseconds(ESCSettings.MediumSpeed - change); //right
 }
 
 void Right() {
   //stop
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //z-axis left
   //stop
-  Motors[1].Motor.writeMicroseconds(ESCSettings.Medium); //z-axis right
+  Motors[1].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //z-axis right
   //forward
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium + change + lateralLeftHandicap); //left
+  Motors[2].Motor.writeMicroseconds(ESCSettings.MediumSpeed + change + lateralLeftHandicap); //left
   //forward
-  Motors[3].Motor.writeMicroseconds(ESCSettings.Medium + change); //right
+  Motors[3].Motor.writeMicroseconds(ESCSettings.MediumSpeed + change); //right
 }
 
 void Up() {
   //stop
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium - change); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.MediumSpeed - change); //z-axis left
   //stop
-  Motors[1].Motor.writeMicroseconds(ESCSettings.Medium + change + zAxisRightHandicap); //z-axis right
+  Motors[1].Motor.writeMicroseconds(ESCSettings.MediumSpeed + change + zAxisRightHandicap); //z-axis right
   //forward
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium); //left
+  Motors[2].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //left
   //forward
-  Motors[3].Motor.writeMicroseconds(ESCSettings.Medium); //right
+  Motors[3].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //right
 }
 
 void Down() {
   //stop
-  Motors[0].Motor.writeMicroseconds(ESCSettings.Medium + change); //z-axis left
+  Motors[0].Motor.writeMicroseconds(ESCSettings.MediumSpeed + change); //z-axis left
   //stop
-  Motors[1].Motor.writeMicroseconds(ESCSettings.Medium - change - zAxisRightHandicap); //z-axis right
+  Motors[1].Motor.writeMicroseconds(ESCSettings.MediumSpeed - change - zAxisRightHandicap); //z-axis right
   //forward
-  Motors[2].Motor.writeMicroseconds(ESCSettings.Medium); //left
+  Motors[2].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //left
   //forward
-  Motors[3].Motor.writeMicroseconds(ESCSettings.Medium); //right
+  Motors[3].Motor.writeMicroseconds(ESCSettings.MediumSpeed); //right
 }
 
 void Stop() {
   for (int i = 0; i < NUMMOTORS; i++)
   {
-      Motors[i].Motor.writeMicroseconds(ESCSettings.Medium);
+      Motors[i].Motor.writeMicroseconds(ESCSettings.MediumSpeed);
   }
 }
 
 void RunAllBySerialInput() {
   for (int i = 0; i < NUMMOTORS; i++)
   {
-    Motors[i].Motor.writeMicroseconds(ESCSettings.Medium);
+    Motors[i].Motor.writeMicroseconds(ESCSettings.MediumSpeed);
   }
   Serial.println("Running ESC");
   Serial.println("Step = ");
   Serial.println(Step);
   Serial.println("\nPress 'u' to increase speed, 'd' to reduce speed, 's' to stop all motors.");
 
-  CurrentSpeed = ESCSettings.Medium;
+  CurrentSpeed = ESCSettings.MediumSpeed;
   while (1) {
     while (!Serial.available())
     {
@@ -184,7 +184,7 @@ void RunAllBySerialInput() {
     if (currentChar == 'u')
     {
       Serial.println("\nIncreasing motor speed by step");
-      if (CurrentSpeed + Step < ESCSettings.High) {
+      if (CurrentSpeed + Step < ESCSettings.HighSpeed) {
         CurrentSpeed = CurrentSpeed + Step;
         Serial.println("New speed = ");
         Serial.println(CurrentSpeed);
@@ -198,7 +198,7 @@ void RunAllBySerialInput() {
     if (currentChar == 'd')
     {
       Serial.println("\nDecreasing motor speed by step\n");
-      if (CurrentSpeed - Step >= ESCSettings.Low)
+      if (CurrentSpeed - Step >= ESCSettings.LowSpeed)
       {
         CurrentSpeed = CurrentSpeed - Step;
         Serial.println("New speed = ");
@@ -213,7 +213,7 @@ void RunAllBySerialInput() {
     if (currentChar == 's')
     {
       Serial.println("\nStopping Motors\n");
-      CurrentSpeed = ESCSettings.Medium;
+      CurrentSpeed = ESCSettings.MediumSpeed;
     }
     for (int i = 0; i < NUMMOTORS; i++)
     {
@@ -225,14 +225,14 @@ void RunAllBySerialInput() {
 void RunDirectionsBySerialInput() {
   for (int i = 0; i < NUMMOTORS; i++)
   {
-    Motors[i].Motor.writeMicroseconds(ESCSettings.Medium);
+    Motors[i].Motor.writeMicroseconds(ESCSettings.MediumSpeed);
   }
   Serial.println("Running ESC");
   Serial.println("Step = ");
   Serial.println(Step);
   Serial.println("\nPress w, a, s, or d for lateral direction. Press q to go up, e to go down. Press x to stop.");
 
-  CurrentSpeed = ESCSettings.Medium;
+  CurrentSpeed = ESCSettings.MediumSpeed;
   while (1) {
 
     //Read key when available else just loop/keep motor running in current direction.
